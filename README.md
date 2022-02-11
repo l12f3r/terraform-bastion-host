@@ -1,5 +1,9 @@
 # bastion-host
 
+@l12f3r here, once again, to share how to create a bastion host (or "jump host", depending on jargon) within AWS. This can be considered a beginner exercise for those interested in learning a bit more on networking and cloud computing.
+
+For those who know me from the [lizferLinux exercise](https://github.com/l12f3r/lizferLinux), buckle your seatbelts because this is a new challenge. If it's your first time around, you can route back to it and take a look how I usually document my own learning and share it on Github.
+
 1- create VPC
 2- create Internet Gateway
 3- create subnets (public and private)
