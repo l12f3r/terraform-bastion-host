@@ -2,9 +2,9 @@
 
 [@l12f3r](https://github.com/l12f3r) here, once again, to share how to create a bastion host (or "jump host", depending on jargon) on an AWS Virtual Private Cloud, using Terraform. This can be considered a beginner exercise for those interested in learning a bit more on networking, infrastructure as code and cloud computing.
 
-For those who know me from the [lizferLinux exercise](https://github.com/l12f3r/lizferLinux), buckle your seatbelts because this is a new challenge. If it's your first time around, you can route back to it and take a look how I usually document my own learning and share it on Github.
+For those who know me from the [lizferLinux exercise](https://github.com/l12f3r/lizferLinux), buckle your seatbelts because this is a new challenge. If it's your first time around, you can route back to it and take a look on how I usually document my own learning and share it on Github.
 
-I'll try to provision everything (network, instances, security) using code and command line. For best practices, I'll provision everything using a `variables.tf` file to separate variables from the main infrastructure code (and to describe what is the use of each parameter), and a `parameters.tfvars` file - that way, infrastructure parameters (such as instance type, region, and tags) can vary depending on preference (or necessity). And, of course, avoid hardcoding.
+I'll try to provision everything (network, instances, security) using code and command line. For best practices, I'll use a `variables.tf` file to separate variables from the main infrastructure code (and to describe the use of each parameter), and a `parameters.tfvars` file - that way, infrastructure parameters (such as instance type, region, and tags) can vary depending on preference (or necessity). And, of course, avoid hardcoding.
 
 ## 1. Prepare the environment
 
@@ -29,7 +29,7 @@ variable "region" {
 
 ## 2. Create a VPC
 
-Upon provisioning the Virtual Private Network (VPC), one may specify just some instance details and have the VPC automatically provisioned with default values. However, such architecture would lack on autonomy.
+Upon provisioning the Virtual Private Network (VPC), one may specify just some other instance details and have the VPC automatically provisioned with default values. However, such architecture would lack on autonomy.
 
 ```terraform
 # main.tf
@@ -61,7 +61,7 @@ variable "vpcName" {
 }
 ```
 
-## 3. Create internet gateway
+## 3. Create an internet gateway
 
 An internet gateway is a logical device responsible for connecting the VPC to the internet. For this step, I decided to draft the provisioning of the bastion host instance, since that its dependency on the internet gateway must be also declared. It's OK to keep default settings, considering that this gateway is provisioned only upon the first `terraform apply` command and its data may not be changed on future runs.
 
@@ -162,7 +162,57 @@ variable "privSubName" {
 }
 ```
 
-## 5. create route tables
-### 5.a point public route table to Internet Gateway
-### 5.b configure NAT gateway
+## 5. Create route tables and associate to subnets
+
+Route tables are configuration patterns that define the connection behaviour of each subnet (how it connects to other resources). It's good practice to associate one route table to each subnet; in our scenario, the public route table must have routes to the internet (that is, to our internet gateway) and to our VPC, while the private one must be routed to our VPC only.
+
+On Terraform code, there must be `resource`s for the route tables and for their associations with subnets. The default route, that maps the VPC's CIDR block to `local`, is created implicitly - therefore, the private route table does not require a `route` within a `resource`.
+
+```terraform
+# main.tf
+resource "aws_route_table" "pubRT" {
+  vpc_id = [aws_vpc.ourVPC.id]
+
+  route {
+    cidr_block = var.pubRTCIDRBlock
+    gateway_id = [aws_internet_gateway.ourIGW.id]
+  }
+
+  tags = {
+    Name = var.pubRTName
+  }
+}
+
+resource "aws_route_table" "privRT" {
+  vpc_id = [aws_vpc.ourVPC.id]
+
+  tags = {
+    Name = var.privRTName
+  }
+}
+
+resource "aws_route_table_association" "pubRTToSub" {
+  subnet_id = [aws_subnet.pubSub.id]
+  route_table_id = [aws_route_table.pubRT.id]
+}
+
+resource "aws_route_table_association" "privRTToSub" {
+  subnet_id = [aws_subnet.privSub.id]
+  route_table_id = [aws_route_table.privRT.id]
+}
+```
+
+```terraform
+# variables.tf
+variable "pubRTName" {
+  type = string
+  description = "Nametag for the public route table"
+}
+
+variable "privRTName" {
+  type = string
+  description = "Nametag for the private route table"
+}
+```
+
 ## 6. create public (w/ public IP) and private instances (w/ security groups) in respective public and private subnets

@@ -53,6 +53,21 @@ variable "privSubName" {
   description = "Nametag of the private subnet"
 }
 
+variable "pubRTCIDRBlock" {
+  type = string
+  description = "CIDR Block for the public route table"
+}
+
+variable "pubRTName" {
+  type = string
+  description = "Nametag for the public route table"
+}
+
+variable "privRTName" {
+  type = string
+  description = "Nametag for the private route table"
+}
+
 variable "bastionHostName" {
   type = string
   description = "Nametag for the bastion host instance"
