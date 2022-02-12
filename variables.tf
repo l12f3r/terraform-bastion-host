@@ -23,7 +23,37 @@ variable "internetGatewayName" {
   description = "Nametag for the internet gateway"
 }
 
-variable "bastionHost" {
+variable "pubSubCIDRBlock" {
+  type = string
+  description = "CIDR block of the public subnet"
+}
+
+variable "pubSubAZ" {
+  type = string
+  description = "Availability zone of the public subnet"
+}
+
+variable "pubSubName" {
+  type = string
+  description = "Nametag of the public subnet"
+}
+
+variable "privSubCIDRBlock" {
+  type = string
+  description = "CIDR block of the private subnet"
+}
+
+variable "privSubAZ" {
+  type = string
+  description = "Availability zone of the private subnet"
+}
+
+variable "privSubName" {
+  type = string
+  description = "Nametag of the private subnet"
+}
+
+variable "bastionHostName" {
   type = string
   description = "Nametag for the bastion host instance"
 }

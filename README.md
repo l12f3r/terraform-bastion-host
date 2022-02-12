@@ -29,11 +29,11 @@ variable "region" {
 
 ## 2. Create a VPC
 
-Upon provisioning the Virtual Private Network (VPC), one may specify just some instance details and have the VPC automatically provisioned with default values. However, such architecture would lack on autonomy. The following lines of code contain some fundamental parameters for setting up two subnets: a public one, for the bastion host, and another private one for the instances that will receive the bastion host access.
+Upon provisioning the Virtual Private Network (VPC), one may specify just some instance details and have the VPC automatically provisioned with default values. However, such architecture would lack on autonomy.
 
 ```terraform
 # main.tf
-resource "aws_vpc" var.vpcName {
+resource "aws_vpc" "ourVPC" {
   cidr_block = var.vpcCIDRBlock
   instance_tenancy = var.vpcInstanceTenancy
 
@@ -67,21 +67,21 @@ An internet gateway is a logical device responsible for connecting the VPC to th
 
 ```terraform
 # main.tf
-resource "aws_internet_gateway" var.internetGatewayName {
-  vpc_id = aws_vpc.main.id
+resource "aws_internet_gateway" "ourIGW" {
+  vpc_id = [aws_vpc.ourVPC.id]
 
   tags = {
     Name = var.internetGatewayName
   }
 }
 
-resource "aws_instance" var.bastionHost {
+resource "aws_instance" "bastionHost" {
   #other resource arguments will be later added
-  depends_on = [aws_internet_gateway.var.internetGatewayName]
+  depends_on = [aws_internet_gateway.ourIGW.id]
 
   tags = {
-    Name = var.bastionHost
-    }
+    Name = var.bastionHostName
+  }
 }
 ```
 
@@ -98,7 +98,70 @@ variable "bastionHost" {
 }
 ```
 
-## 4. create subnets (public and private)
+## 4. Create subnets (public and private)
+
+Within our VPC, subnets are logical clusters of instances that, although part of the same network, can be organised with different parameters to meet several needs.
+
+The following lines of code contain some fundamental parameters for setting up two subnets: a public one (that is, open to receive internet traffic), for the bastion host, and another private one for the instances that will receive the bastion host access (and must not be connected to the internet).
+
+Since that those subnets will be within the VPC's CIDR block, make sure to divide the useable IPs properly. In order to do so, I used [this visual subnet calculator I found online](https://www.davidc.net/sites/default/subnets/subnets.html).
+
+```terraform
+# main.tf
+resource "aws_subnet" "pubSub" {
+  vpc_id = [aws_vpc.ourVPC.id]
+  cidr_block = var.pubSubCIDRBlock
+  availability_zone = var.pubSubAZ
+
+  tags = {
+    Name = var.pubSubName
+  }
+}
+
+resource "aws_subnet" "privSub" {
+  vpc_id = [aws_vpc.ourVPC.id]
+  cidr_block = var.privSubCIDRBlock
+  availability_zone = var.privSubAZ
+
+  tags = {
+    Name = var.privSubName
+  }
+}
+```
+
+```terraform
+# variables.tf
+variable "pubSubCIDRBlock" {
+  type = string
+  description = "CIDR block of the public subnet"
+}
+
+variable "pubSubAZ" {
+  type = string
+  description = "Availability zone of the public subnet"
+}
+
+variable "pubSubName" {
+  type = string
+  description = "Nametag of the public subnet"
+}
+
+variable "privSubCIDRBlock" {
+  type = string
+  description = "CIDR block of the private subnet"
+}
+
+variable "privSubAZ" {
+  type = string
+  description = "Availability zone of the private subnet"
+}
+
+variable "privSubName" {
+  type = string
+  description = "Nametag of the private subnet"
+}
+```
+
 ## 5. create route tables
 ### 5.a point public route table to Internet Gateway
 ### 5.b configure NAT gateway
