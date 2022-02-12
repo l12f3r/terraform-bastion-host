@@ -61,7 +61,43 @@ variable "vpcName" {
 }
 ```
 
-## 3. create Internet Gateway
+## 3. Create internet gateway
+
+An internet gateway is a logical device responsible for connecting the VPC to the internet. For this step, I decided to draft the provisioning of the bastion host instance, since that its dependency on the internet gateway must be also declared. It's OK to keep default settings, considering that this gateway is provisioned only upon the first `terraform apply` command and its data may not be changed on future runs.
+
+```terraform
+# main.tf
+resource "aws_internet_gateway" var.internetGatewayName {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = var.internetGatewayName
+  }
+}
+
+resource "aws_instance" var.bastionHost {
+  #other resource arguments will be later added
+  depends_on = [aws_internet_gateway.var.internetGatewayName]
+
+  tags = {
+    Name = var.bastionHost
+    }
+}
+```
+
+```terraform
+# variables.tf
+variable "internetGatewayName" {
+  type = string
+  description = "Nametag for the internet gateway"
+}
+
+variable "bastionHost" {
+  type = string
+  description = "Nametag for the bastion host instance"
+}
+```
+
 ## 4. create subnets (public and private)
 ## 5. create route tables
 ### 5.a point public route table to Internet Gateway

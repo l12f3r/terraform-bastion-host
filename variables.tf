@@ -17,3 +17,13 @@ variable "vpcName" {
   type = string
   description = "Nametag for the VPC"
 }
+
+variable "internetGatewayName" {
+  type = string
+  description = "Nametag for the internet gateway"
+}
+
+variable "bastionHost" {
+  type = string
+  description = "Nametag for the bastion host instance"
+}
