@@ -13,6 +13,7 @@ Terraform must be installed and configured in your environment: check how to ins
 The `main.tf` file must have defined the cloud provider of preference and the logical region defined. I selected AWS and that's probably the only hardcoded information entered - other code references depend on this information. The region where your VPC will be provisioned should also be defined:
 
 ```terraform
+# main.tf
 provider "aws" {
   region = var.region
 }
