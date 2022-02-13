@@ -19,14 +19,6 @@ provider "aws" {
 }
 ```
 
-```terraform
-# variables.tf
-variable "region" {
-  type = string
-  description = "Region where all resources will be provisioned"
-}
-```
-
 ## 2. Create a VPC
 
 Upon provisioning the Virtual Private Network (VPC), one may specify just some other instance details and have the VPC automatically provisioned with default values. However, such architecture would lack on autonomy.
@@ -43,58 +35,21 @@ resource "aws_vpc" "ourVPC" {
 }
 ```
 
-```terraform
-# variables.tf
-variable "vpcCIDRBlock" {
-  type = string
-  description = "CIDR block of the VPN"
-}
-
-variable "vpcInstanceTenancy" {
-  type = string
-  description = "Tenancy option for instances launched into the VPC"
-}
-
-variable "vpcName" {
-  type = string
-  description = "Nametag for the VPC"
-}
-```
-
 ## 3. Create an internet gateway
 
-An internet gateway is a logical device responsible for connecting the VPC to the internet. For this step, I decided to draft the provisioning of the bastion host instance, since that its dependency on the internet gateway must be also declared. It's OK to keep default settings, considering that this gateway is provisioned only upon the first `terraform apply` command and its data may not be changed on future runs.
+An internet gateway is a logical device responsible for connecting the VPC to the internet.
+
+From this point on, it's good practice to declare explicit dependencies using `depends_on`.
 
 ```terraform
 # main.tf
 resource "aws_internet_gateway" "ourIGW" {
   vpc_id = [aws_vpc.ourVPC.id]
+  depends_on = [aws_vpc.ourVPC]
 
   tags = {
     Name = var.internetGatewayName
   }
-}
-
-resource "aws_instance" "bastionHost" {
-  #other resource arguments will be later added
-  depends_on = [aws_internet_gateway.ourIGW.id]
-
-  tags = {
-    Name = var.bastionHostName
-  }
-}
-```
-
-```terraform
-# variables.tf
-variable "internetGatewayName" {
-  type = string
-  description = "Nametag for the internet gateway"
-}
-
-variable "bastionHost" {
-  type = string
-  description = "Nametag for the bastion host instance"
 }
 ```
 
@@ -112,6 +67,7 @@ resource "aws_subnet" "pubSub" {
   vpc_id = [aws_vpc.ourVPC.id]
   cidr_block = var.pubSubCIDRBlock
   availability_zone = var.pubSubAZ
+  depends_on = [aws_internet_gateway.ourIGW]
 
   tags = {
     Name = var.pubSubName
@@ -122,43 +78,11 @@ resource "aws_subnet" "privSub" {
   vpc_id = [aws_vpc.ourVPC.id]
   cidr_block = var.privSubCIDRBlock
   availability_zone = var.privSubAZ
+  depends_on = [aws_internet_gateway.ourIGW]
 
   tags = {
     Name = var.privSubName
   }
-}
-```
-
-```terraform
-# variables.tf
-variable "pubSubCIDRBlock" {
-  type = string
-  description = "CIDR block of the public subnet"
-}
-
-variable "pubSubAZ" {
-  type = string
-  description = "Availability zone of the public subnet"
-}
-
-variable "pubSubName" {
-  type = string
-  description = "Nametag of the public subnet"
-}
-
-variable "privSubCIDRBlock" {
-  type = string
-  description = "CIDR block of the private subnet"
-}
-
-variable "privSubAZ" {
-  type = string
-  description = "Availability zone of the private subnet"
-}
-
-variable "privSubName" {
-  type = string
-  description = "Nametag of the private subnet"
 }
 ```
 
@@ -172,6 +96,7 @@ On Terraform code, there must be `resource`s for the route tables and for their 
 # main.tf
 resource "aws_route_table" "pubRT" {
   vpc_id = [aws_vpc.ourVPC.id]
+  depends_on = [aws_subnet.pubSub]
 
   route {
     cidr_block = var.pubRTCIDRBlock
@@ -185,6 +110,7 @@ resource "aws_route_table" "pubRT" {
 
 resource "aws_route_table" "privRT" {
   vpc_id = [aws_vpc.ourVPC.id]
+  depends_on = [aws_subnet.privSub]
 
   tags = {
     Name = var.privRTName
@@ -194,24 +120,13 @@ resource "aws_route_table" "privRT" {
 resource "aws_route_table_association" "pubRTToSub" {
   subnet_id = [aws_subnet.pubSub.id]
   route_table_id = [aws_route_table.pubRT.id]
+  depends_on = [aws_route_table.pubRT]
 }
 
 resource "aws_route_table_association" "privRTToSub" {
   subnet_id = [aws_subnet.privSub.id]
   route_table_id = [aws_route_table.privRT.id]
-}
-```
-
-```terraform
-# variables.tf
-variable "pubRTName" {
-  type = string
-  description = "Nametag for the public route table"
-}
-
-variable "privRTName" {
-  type = string
-  description = "Nametag for the private route table"
+  depends_on = [aws_route_table.privRT]
 }
 ```
 
@@ -225,12 +140,13 @@ There are many other attributes that could be used for more autonomy, but these 
 
 ```terraform
 # main.tf
+
 # Bastion Host instance configuration
 resource "aws_instance" "bastionHost" {
   ami = var.bastionHostAMI
   instance_type = var.bastionHostInstanceType
   vpc_security_group_ids = [aws_security_group.bastionHostSG]
-  depends_on = [aws_internet_gateway.ourIGW.id]
+  depends_on = [aws_subnet.pubSub]
 
   tags = {
     Name = var.bastionHostName
@@ -239,6 +155,7 @@ resource "aws_instance" "bastionHost" {
 
 resource "aws_security_group" "bastionHostSG" {
   vpc_id = [aws_vpc.ourVPC.id]
+  depends_on = [aws_instance.bastionHost]
 
   ingress {
     from_port        = 22
@@ -264,6 +181,7 @@ resource "aws_instance" "privInstance" {
   ami = var.privInstAMI
   instance_type = var.privInstInstanceType
   vpc_security_group_ids = [aws_security_group.privInstSG]
+  depends_on = [aws_subnet.privSub]
 
   tags = {
     Name = var.privInstName
@@ -272,6 +190,7 @@ resource "aws_instance" "privInstance" {
 
 resource "aws_security_group" "privInstSG" {
   vpc_id = [aws_vpc.ourVPC.id]
+  depends_on = [aws_instance.privInstance]
 
   ingress {
     from_port        = 22
@@ -290,62 +209,6 @@ resource "aws_security_group" "privInstSG" {
   tags = {
     Name = var.privInstSGName
   }
-}
-
-```
-
-```terraform
-# variables.tf
-# Bastion host variables
-variable "bastionHostAMI" {
-  type = string
-  description = "AMI for the bastion host instance"
-}
-
-variable "bastionHostInstanceType" {
-  type = string
-  description = "Instance type for the bastion host"
-}
-
-variable "bastionHostName" {
-  type = string
-  description = "Nametag for the bastion host instance"
-}
-
-variable "bastionHostSGCIDRBlock" {
-  type = string
-  description = "CIDR block for the bastion host security group"
-}
-
-variable "bastionHostSGName" {
-  type = string
-  description = "Nametag for the bastion host security group"
-}
-
-# Private instance variables
-variable "privInstAMI" {
-  type = string
-  description = "AMI for the private instance"
-}
-
-variable "privInstInstanceType" {
-  type = string
-  description = "Instance type for the private instance"
-}
-
-variable "privInstName" {
-  type = string
-  description = "Nametag for the private instance"
-}
-
-variable "privInstSGCIDRBlock" {
-  type = string
-  description = "CIDR block for the private instance security group"
-}
-
-variable "privInstSGName" {
-  type = string
-  description = "Nametag for the private instance security group"
 }
 ```
 
