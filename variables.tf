@@ -83,11 +83,6 @@ variable "bastionHostName" {
   description = "Nametag for the bastion host instance"
 }
 
-variable "bastionHostSGCIDRBlock" {
-  type = string
-  description = "CIDR block for the bastion host security group"
-}
-
 variable "bastionHostSGName" {
   type = string
   description = "Nametag for the bastion host security group"
@@ -106,11 +101,6 @@ variable "privInstInstanceType" {
 variable "privInstName" {
   type = string
   description = "Nametag for the private instance"
-}
-
-variable "privInstSGCIDRBlock" {
-  type = string
-  description = "CIDR block for the private instance security group"
 }
 
 variable "privInstSGName" {

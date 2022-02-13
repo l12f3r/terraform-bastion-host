@@ -44,7 +44,7 @@ From this point on, it's good practice to declare explicit dependencies using `d
 ```terraform
 # main.tf
 resource "aws_internet_gateway" "ourIGW" {
-  vpc_id = [aws_vpc.ourVPC.id]
+  vpc_id = aws_vpc.ourVPC.id
   depends_on = [aws_vpc.ourVPC]
 
   tags = {
@@ -64,7 +64,7 @@ Since that those subnets will be within the VPC's CIDR block, make sure to divid
 ```terraform
 # main.tf
 resource "aws_subnet" "pubSub" {
-  vpc_id = [aws_vpc.ourVPC.id]
+  vpc_id = aws_vpc.ourVPC.id
   cidr_block = var.pubSubCIDRBlock
   availability_zone = var.pubSubAZ
   depends_on = [aws_internet_gateway.ourIGW]
@@ -75,7 +75,7 @@ resource "aws_subnet" "pubSub" {
 }
 
 resource "aws_subnet" "privSub" {
-  vpc_id = [aws_vpc.ourVPC.id]
+  vpc_id = aws_vpc.ourVPC.id
   cidr_block = var.privSubCIDRBlock
   availability_zone = var.privSubAZ
   depends_on = [aws_internet_gateway.ourIGW]
@@ -95,12 +95,12 @@ On Terraform code, there must be `resource`s for the route tables and for their 
 ```terraform
 # main.tf
 resource "aws_route_table" "pubRT" {
-  vpc_id = [aws_vpc.ourVPC.id]
+  vpc_id = aws_vpc.ourVPC.id
   depends_on = [aws_subnet.pubSub]
 
   route {
     cidr_block = var.pubRTCIDRBlock
-    gateway_id = [aws_internet_gateway.ourIGW.id]
+    gateway_id = aws_internet_gateway.ourIGW.id
   }
 
   tags = {
@@ -109,7 +109,7 @@ resource "aws_route_table" "pubRT" {
 }
 
 resource "aws_route_table" "privRT" {
-  vpc_id = [aws_vpc.ourVPC.id]
+  vpc_id = aws_vpc.ourVPC.id
   depends_on = [aws_subnet.privSub]
 
   tags = {
@@ -118,14 +118,14 @@ resource "aws_route_table" "privRT" {
 }
 
 resource "aws_route_table_association" "pubRTToSub" {
-  subnet_id = [aws_subnet.pubSub.id]
-  route_table_id = [aws_route_table.pubRT.id]
+  subnet_id = aws_subnet.pubSub.id
+  route_table_id = aws_route_table.pubRT.id
   depends_on = [aws_route_table.pubRT]
 }
 
 resource "aws_route_table_association" "privRTToSub" {
-  subnet_id = [aws_subnet.privSub.id]
-  route_table_id = [aws_route_table.privRT.id]
+  subnet_id = aws_subnet.privSub.id
+  route_table_id = aws_route_table.privRT.id
   depends_on = [aws_route_table.privRT]
 }
 ```
@@ -134,7 +134,7 @@ resource "aws_route_table_association" "privRTToSub" {
 
 OK - now that the whole network infrastructure is set, our instances must be created within our subnets and its security groups must be configured. Security groups are layers of security on the instance level, where the administrator defines what can connect to the resource and how (using which protocol).
 
-The bastion host instance was drafted while creating the internet gateway; therefore, it must receive additional and necessary arguments (such as defining its public IP or AMI) to be functional.
+The bastion host instance was drafted while creating the internet gateway; therefore, it must receive additional and necessary arguments (such as defining its public IP or AMI) to be functional. The private instance security group must state that SSH connections should be accepted only from the bastion host.
 
 There are many other attributes that could be used for more autonomy, but these selected are enough.
 
@@ -145,8 +145,8 @@ There are many other attributes that could be used for more autonomy, but these 
 resource "aws_instance" "bastionHost" {
   ami = var.bastionHostAMI
   instance_type = var.bastionHostInstanceType
-  vpc_security_group_ids = [aws_security_group.bastionHostSG]
-  depends_on = [aws_subnet.pubSub]
+  vpc_security_group_ids = [aws_security_group.bastionHostSG.id]
+  depends_on = [aws_security_group.bastionHostSG]
 
   tags = {
     Name = var.bastionHostName
@@ -154,20 +154,20 @@ resource "aws_instance" "bastionHost" {
 }
 
 resource "aws_security_group" "bastionHostSG" {
-  vpc_id = [aws_vpc.ourVPC.id]
+  vpc_id = aws_vpc.ourVPC.id
 
   ingress {
     from_port        = 22
     to_port          = 22
     protocol         = "tcp"
-    cidr_blocks      = var.bastionHostSGCIDRBlock
+    cidr_blocks      = ["0.0.0.0/0"]
   }
 
   egress {
     from_port        = 0
     to_port          = 0
     protocol         = "-1"
-    cidr_blocks      = var.bastionHostSGCIDRBlock
+    cidr_blocks      = ["0.0.0.0/0"]
   }
 
   tags = {
@@ -179,8 +179,8 @@ resource "aws_security_group" "bastionHostSG" {
 resource "aws_instance" "privInstance" {
   ami = var.privInstAMI
   instance_type = var.privInstInstanceType
-  vpc_security_group_ids = [aws_security_group.privInstSG]
-  depends_on = [aws_subnet.privSub]
+  vpc_security_group_ids = [aws_security_group.privInstSG.id]
+  depends_on = [aws_security_group.privInstSG]
 
   tags = {
     Name = var.privInstName
@@ -188,7 +188,7 @@ resource "aws_instance" "privInstance" {
 }
 
 resource "aws_security_group" "privInstSG" {
-  vpc_id = [aws_vpc.ourVPC.id]
+  vpc_id = aws_vpc.ourVPC.id
 
   ingress {
     from_port        = 22
@@ -201,7 +201,7 @@ resource "aws_security_group" "privInstSG" {
     from_port        = 0
     to_port          = 0
     protocol         = "-1"
-    cidr_blocks      = var.privInstSGCIDRBlock
+    cidr_blocks      = ["0.0.0.0/0"]
   }
 
   tags = {
