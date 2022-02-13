@@ -215,4 +215,138 @@ variable "privRTName" {
 }
 ```
 
-## 6. create public (w/ public IP) and private instances (w/ security groups) in respective public and private subnets
+## 6. Create public (w/ public IP) and private instances (w/ security groups) in respective public and private subnets
+
+OK - now that the whole network infrastructure is set, our instances must be created within our subnets and its security groups must be configured. Security groups are layers of security on the instance level, where the administrator defines what can connect to the resource and how (using which protocol).
+
+The bastion host instance was drafted while creating the internet gateway; therefore, it must receive additional and necessary arguments (such as defining its public IP or AMI) to be functional.
+
+There are many other attributes that could be used for more autonomy, but these selected are enough.
+
+```terraform
+# main.tf
+# Bastion Host instance configuration
+resource "aws_instance" "bastionHost" {
+  ami = var.bastionHostAMI
+  instance_type = var.bastionHostInstanceType
+  vpc_security_group_ids = [aws_security_group.bastionHostSG]
+  depends_on = [aws_internet_gateway.ourIGW.id]
+
+  tags = {
+    Name = var.bastionHostName
+  }
+}
+
+resource "aws_security_group" "bastionHostSG" {
+  vpc_id = [aws_vpc.ourVPC.id]
+
+  ingress {
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    cidr_blocks      = var.bastionHostSGCIDRBlock
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = var.bastionHostSGCIDRBlock
+  }
+
+  tags = {
+    Name = var.bastionHostSGName
+  }
+}
+
+# Private instance configuration
+resource "aws_instance" "privInstance" {
+  ami = var.privInstAMI
+  instance_type = var.privInstInstanceType
+  vpc_security_group_ids = [aws_security_group.privInstSG]
+
+  tags = {
+    Name = var.privInstName
+  }
+}
+
+resource "aws_security_group" "privInstSG" {
+  vpc_id = [aws_vpc.ourVPC.id]
+
+  ingress {
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    cidr_blocks      = [aws_instance.bastionHost.private_ip]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = var.privInstSGCIDRBlock
+  }
+
+  tags = {
+    Name = var.privInstSGName
+  }
+}
+
+```
+
+```terraform
+# variables.tf
+# Bastion host variables
+variable "bastionHostAMI" {
+  type = string
+  description = "AMI for the bastion host instance"
+}
+
+variable "bastionHostInstanceType" {
+  type = string
+  description = "Instance type for the bastion host"
+}
+
+variable "bastionHostName" {
+  type = string
+  description = "Nametag for the bastion host instance"
+}
+
+variable "bastionHostSGCIDRBlock" {
+  type = string
+  description = "CIDR block for the bastion host security group"
+}
+
+variable "bastionHostSGName" {
+  type = string
+  description = "Nametag for the bastion host security group"
+}
+
+# Private instance variables
+variable "privInstAMI" {
+  type = string
+  description = "AMI for the private instance"
+}
+
+variable "privInstInstanceType" {
+  type = string
+  description = "Instance type for the private instance"
+}
+
+variable "privInstName" {
+  type = string
+  description = "Nametag for the private instance"
+}
+
+variable "privInstSGCIDRBlock" {
+  type = string
+  description = "CIDR block for the private instance security group"
+}
+
+variable "privInstSGName" {
+  type = string
+  description = "Nametag for the private instance security group"
+}
+```
+
+## 7. Configuring the bastion host security and access to the private instance

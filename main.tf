@@ -71,10 +71,66 @@ resource "aws_route_table_association" "privRTToSub" {
 }
 
 resource "aws_instance" "bastionHost" {
-  #other resource arguments will be later added
+  ami = var.bastionHostAMI
+  instance_type = var.bastionHostInstanceType
+  vpc_security_group_ids = [aws_security_group.bastionHostSG]
   depends_on = [aws_internet_gateway.ourIGW.id]
 
   tags = {
     Name = var.bastionHostName
+  }
+}
+
+resource "aws_security_group" "bastionHostSG" {
+  vpc_id = [aws_vpc.ourVPC.id]
+
+  ingress {
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    cidr_blocks      = var.bastionHostSGCIDRBlock
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = var.bastionHostSGCIDRBlock
+  }
+
+  tags = {
+    Name = var.bastionHostSGName
+  }
+}
+
+resource "aws_instance" "privInstance" {
+  ami = var.privInstAMI
+  instance_type = var.privInstInstanceType
+  vpc_security_group_ids = [aws_security_group.privInstSG]
+
+  tags = {
+    Name = var.privInstName
+  }
+}
+
+resource "aws_security_group" "privInstSG" {
+  vpc_id = [aws_vpc.ourVPC.id]
+
+  ingress {
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    cidr_blocks      = [aws_instance.bastionHost.private_ip]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = var.privInstSGCIDRBlock
+  }
+
+  tags = {
+    Name = var.privInstSGName
   }
 }
