@@ -4,7 +4,7 @@
 
 For those who know me from the [lizferLinux exercise](https://github.com/l12f3r/lizferLinux), buckle your seatbelts because this is a new challenge. If it's your first time around, you can route back to it and take a look on how I usually document my own learning and share it on Github.
 
-I'll try to provision everything (network, instances, security) using code and command line. For best practices, I'll use a `variables.tf` file to separate variables from the main infrastructure code (and to describe the use of each parameter), and a `parameters.tfvars` file - that way, infrastructure parameters (such as instance type, region, and tags) can vary depending on preference (or necessity). And, of course, avoid hardcoding.
+I'll try to provision everything (network, instances, security) using code and command line. For best practices, I'll use a `variables.tf` file to separate variables from the main infrastructure code (and to describe the use of each parameter), and a `parameters.auto.tfvars` file - that way, infrastructure parameters (such as instance type, region, and tags) can vary depending on preference (or necessity). And, of course, avoid hardcoding.
 
 ## 1. Prepare the environment
 
@@ -215,7 +215,7 @@ variable "privRTName" {
 }
 ```
 
-## 6. Create public (w/ public IP) and private instances (w/ security groups) in respective public and private subnets
+## 6. Create public and private instances with security groups
 
 OK - now that the whole network infrastructure is set, our instances must be created within our subnets and its security groups must be configured. Security groups are layers of security on the instance level, where the administrator defines what can connect to the resource and how (using which protocol).
 
