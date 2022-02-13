@@ -155,7 +155,6 @@ resource "aws_instance" "bastionHost" {
 
 resource "aws_security_group" "bastionHostSG" {
   vpc_id = [aws_vpc.ourVPC.id]
-  depends_on = [aws_instance.bastionHost]
 
   ingress {
     from_port        = 22
@@ -190,7 +189,6 @@ resource "aws_instance" "privInstance" {
 
 resource "aws_security_group" "privInstSG" {
   vpc_id = [aws_vpc.ourVPC.id]
-  depends_on = [aws_instance.privInstance]
 
   ingress {
     from_port        = 22
