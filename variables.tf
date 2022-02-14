@@ -18,6 +18,16 @@ variable "pubSubName" {
   description = "Nametag of the public subnet"
 }
 
+variable "pubSubCIDRBlock" {
+  type = string
+  description = "CIDR block of the public subnet"
+}
+
+variable "privSubCIDRBlock" {
+  type = string
+  description = "CIDR block of the private subnet"
+}
+
 variable "privSubAZ" {
   type = string
   description = "Availability zone of the private subnet"

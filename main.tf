@@ -11,6 +11,7 @@ resource "aws_default_vpc" "ourVPC" {
 
 resource "aws_subnet" "pubSub" {
   vpc_id = aws_default_vpc.ourVPC.id
+  cidr_block = var.pubSubCIDRBlock
   availability_zone = var.pubSubAZ
   depends_on = [aws_default_vpc.ourVPC]
 
@@ -21,6 +22,7 @@ resource "aws_subnet" "pubSub" {
 
 resource "aws_subnet" "privSub" {
   vpc_id = aws_default_vpc.ourVPC.id
+  cidr_block = var.privSubCIDRBlock
   availability_zone = var.privSubAZ
   depends_on = [aws_default_vpc.ourVPC]
 
