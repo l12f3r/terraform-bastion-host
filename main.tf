@@ -2,29 +2,17 @@ provider "aws" {
   region = var.region
 }
 
-resource "aws_vpc" "ourVPC" {
-  cidr_block = var.vpcCIDRBlock
-  instance_tenancy = var.vpcInstanceTenancy
+resource "aws_default_vpc" "ourVPC" {
 
   tags = {
     Name = var.vpcName
   }
 }
 
-resource "aws_internet_gateway" "ourIGW" {
-  vpc_id = aws_vpc.ourVPC.id
-  depends_on = [aws_vpc.ourVPC]
-
-  tags = {
-    Name = var.internetGatewayName
-  }
-}
-
 resource "aws_subnet" "pubSub" {
-  vpc_id = aws_vpc.ourVPC.id
-  cidr_block = var.pubSubCIDRBlock
+  vpc_id = aws_default_vpc.ourVPC.id
   availability_zone = var.pubSubAZ
-  depends_on = [aws_internet_gateway.ourIGW]
+  depends_on = [aws_default_vpc.ourVPC]
 
   tags = {
     Name = var.pubSubName
@@ -32,10 +20,9 @@ resource "aws_subnet" "pubSub" {
 }
 
 resource "aws_subnet" "privSub" {
-  vpc_id = aws_vpc.ourVPC.id
-  cidr_block = var.privSubCIDRBlock
+  vpc_id = aws_default_vpc.ourVPC.id
   availability_zone = var.privSubAZ
-  depends_on = [aws_internet_gateway.ourIGW]
+  depends_on = [aws_default_vpc.ourVPC]
 
   tags = {
     Name = var.privSubName
@@ -43,13 +30,8 @@ resource "aws_subnet" "privSub" {
 }
 
 resource "aws_route_table" "pubRT" {
-  vpc_id = aws_vpc.ourVPC.id
+  vpc_id = aws_default_vpc.ourVPC.id
   depends_on = [aws_subnet.pubSub]
-
-  route {
-    cidr_block = var.pubRTCIDRBlock
-    gateway_id = aws_internet_gateway.ourIGW.id
-  }
 
   tags = {
     Name = var.pubRTName
@@ -57,7 +39,7 @@ resource "aws_route_table" "pubRT" {
 }
 
 resource "aws_route_table" "privRT" {
-  vpc_id = aws_vpc.ourVPC.id
+  vpc_id = aws_default_vpc.ourVPC.id
   depends_on = [aws_subnet.privSub]
 
   tags = {
@@ -89,20 +71,21 @@ resource "aws_instance" "bastionHost" {
 }
 
 resource "aws_security_group" "bastionHostSG" {
-  vpc_id = aws_vpc.ourVPC.id
+  vpc_id = aws_default_vpc.ourVPC.id
+  depends_on = [aws_route_table.pubRT]
 
   ingress {
-    from_port        = 22
-    to_port          = 22
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = {
@@ -122,23 +105,33 @@ resource "aws_instance" "privInstance" {
 }
 
 resource "aws_security_group" "privInstSG" {
-  vpc_id = aws_vpc.ourVPC.id
+  vpc_id = aws_default_vpc.ourVPC.id
+  depends_on = [aws_route_table.privRT]
 
   ingress {
-    from_port        = 22
-    to_port          = 22
-    protocol         = "tcp"
-    cidr_blocks      = [aws_instance.bastionHost.private_ip]
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = {
     Name = var.privInstSGName
   }
+}
+
+resource "aws_security_group_rule" "privInstSGRule" {
+  type = "ingress"
+  from_port = 22
+  to_port = 22
+  protocol = "tcp"
+  security_group_id = "aws_security_group.bastionHostSG.id"
+  depends_on = [aws_security_group.bastionHostSG]
 }
