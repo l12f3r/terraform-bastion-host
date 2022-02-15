@@ -8,6 +8,16 @@ variable "vpcName" {
   description = "Nametag for the VPC"
 }
 
+variable "vpcCIDRBlock" {
+  type = string
+  description = "CIDR block of the VPN"
+}
+
+variable "vpcInstanceTenancy" {
+  type = string
+  description = "Tenancy option for instances launched into the VPC"
+}
+
 variable "pubSubAZ" {
   type = string
   description = "Availability zone of the public subnet"
