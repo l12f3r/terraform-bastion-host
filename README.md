@@ -177,6 +177,14 @@ resource "aws_instance" "bastionHost" {
   vpc_security_group_ids = [aws_security_group.bastionHostSG.id]
   subnet_id = aws_subnet.pubSub.id
   depends_on = [aws_security_group.bastionHostSG]
+  user_data = <<-EOF
+  #!/bin/bash -ex
+  yum update -y
+  yum install -y httpd.x86_64
+  systemctl start httpd.service
+  systemctl enable httpd.service
+  echo “IF YOU CAN READ THIS, YOUR BASTION HOST INSTANCE IS CONFIGURED CORRECTLY. NOW SSH INTO THE PRIVATE HOST!” > /var/www/html/index.html
+  EOF
 
   tags = {
     Name = var.bastionHostName
