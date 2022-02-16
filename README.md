@@ -163,18 +163,6 @@ resource "aws_security_group" "privInstSG" {
     Name = var.privInstSGName
   }
 }
-<<<<<<< HEAD
-=======
-
-resource "aws_security_group_rule" "privInstSGRule" {
-  type = "ingress"
-  from_port = 22
-  to_port = 22
-  protocol = "tcp"
-  cidr_blocks = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.privInstSG.id
-}
->>>>>>> ab4d91ce812562b2faf1929aae1709e0e80a581c
 ```
 
 ## 7. Create the bastion host and the private instance
@@ -208,4 +196,8 @@ resource "aws_instance" "privInstance" {
 }
 ```
 
-## 8. Configuring the bastion host security and access to the private instance
+## 8. Completion
+
+Now, the Terraform code must be applied using `terraform apply`. After its completion, all environment will be available on the cloud. Just SSH into the bastion host and, from there only, one may SSH into the private instance.
+
+A huge shout out to [@1Vidz1](https://github.com/1Vidz1), who developed this [on his own repo](https://github.com/1Vidz1/AWS-Terraform-Environments/) and was my pair-debugging pal - the last two sections are pretty much on him. Obrigado! Another one to the mentor of this project, [@tseideltrc](https://github.com/tseideltrc): bifanas no prato and Pedro's finest to you both! Vielen danke!
