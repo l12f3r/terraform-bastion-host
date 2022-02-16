@@ -86,18 +86,24 @@ resource "aws_security_group" "privInstSG" {
   vpc_id = aws_vpc.ourVPC.id
   depends_on = [aws_route_table.privRT]
 
+  ingress {
+    description = "SSH from Bastion Host Security Group"
+    from_port = 22
+    to_port = 22
+    protocol = "tcp"
+    security_groups  = [aws_security_group.bastionHostSG.id]
+  }
+
+  egress {
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   tags = {
     Name = var.privInstSGName
   }
-}
-
-resource "aws_security_group_rule" "privInstSGRule" {
-  type = "ingress"
-  from_port = 22
-  to_port = 22
-  protocol = "tcp"
-  cidr_blocks = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.privInstSG.id
 }
 
 resource "aws_instance" "bastionHost" {

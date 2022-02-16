@@ -113,7 +113,7 @@ resource "aws_route_table_association" "privRTToSub" {
 
 Security groups are layers of security on the instance level, where the administrator defines what can connect to the resource and how (using which protocol) using security group rules.
 
-Like route tables, security group rules have their specific `resource` block of code. To set up our scenario (where the public route table must point to the internet and to our VPC, while the private one must be routed to our VPC only), the private instance security group rule must state that only SSH connections from the bastion host security group should be accepted.
+To set up our scenario (where the public route table must point to the internet and to our VPC, while the private one must be routed to our VPC only), the private instance security group must state that only SSH connections from the bastion host security group should be accepted.
 
 ```terraform
 # main.tf
@@ -144,18 +144,24 @@ resource "aws_security_group" "privInstSG" {
   vpc_id = aws_vpc.ourVPC.id
   depends_on = [aws_route_table.privRT]
 
+  ingress {
+    description = "SSH from Bastion Host Security Group"
+    from_port = 22
+    to_port = 22
+    protocol = "tcp"
+    security_groups  = [aws_security_group.bastionHostSG.id]
+  }
+
+  egress {
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   tags = {
     Name = var.privInstSGName
   }
-}
-
-resource "aws_security_group_rule" "privInstSGRule" {
-  type = "ingress"
-  from_port = 22
-  to_port = 22
-  protocol = "tcp"
-  cidr_blocks = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.bastionHostSG.id
 }
 ```
 
