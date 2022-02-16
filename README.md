@@ -155,7 +155,7 @@ resource "aws_security_group_rule" "privInstSGRule" {
   to_port = 22
   protocol = "tcp"
   cidr_blocks = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.bastionHostSG.id
+  security_group_id = aws_security_group.privInstSG.id
 }
 ```
 
