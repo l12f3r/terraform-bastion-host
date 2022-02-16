@@ -3,6 +3,11 @@ variable "region" {
   description = "Region where all resources will be provisioned"
 }
 
+variable "vpcName" {
+  type = string
+  description = "Nametag for the VPC"
+}
+
 variable "vpcCIDRBlock" {
   type = string
   description = "CIDR block of the VPN"
@@ -13,21 +18,6 @@ variable "vpcInstanceTenancy" {
   description = "Tenancy option for instances launched into the VPC"
 }
 
-variable "vpcName" {
-  type = string
-  description = "Nametag for the VPC"
-}
-
-variable "internetGatewayName" {
-  type = string
-  description = "Nametag for the internet gateway"
-}
-
-variable "pubSubCIDRBlock" {
-  type = string
-  description = "CIDR block of the public subnet"
-}
-
 variable "pubSubAZ" {
   type = string
   description = "Availability zone of the public subnet"
@@ -36,6 +26,11 @@ variable "pubSubAZ" {
 variable "pubSubName" {
   type = string
   description = "Nametag of the public subnet"
+}
+
+variable "pubSubCIDRBlock" {
+  type = string
+  description = "CIDR block of the public subnet"
 }
 
 variable "privSubCIDRBlock" {
@@ -51,11 +46,6 @@ variable "privSubAZ" {
 variable "privSubName" {
   type = string
   description = "Nametag of the private subnet"
-}
-
-variable "pubRTCIDRBlock" {
-  type = string
-  description = "CIDR Block for the public route table"
 }
 
 variable "pubRTName" {
