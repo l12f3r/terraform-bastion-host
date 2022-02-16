@@ -163,6 +163,18 @@ resource "aws_security_group" "privInstSG" {
     Name = var.privInstSGName
   }
 }
+<<<<<<< HEAD
+=======
+
+resource "aws_security_group_rule" "privInstSGRule" {
+  type = "ingress"
+  from_port = 22
+  to_port = 22
+  protocol = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.privInstSG.id
+}
+>>>>>>> ab4d91ce812562b2faf1929aae1709e0e80a581c
 ```
 
 ## 7. Create the bastion host and the private instance
