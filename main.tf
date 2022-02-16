@@ -1,7 +1,3 @@
-provider "aws" {
-  region = var.region
-}
-
 resource "aws_vpc" "ourVPC" {
   cidr_block = var.vpcCIDRBlock
   instance_tenancy = var.vpcInstanceTenancy

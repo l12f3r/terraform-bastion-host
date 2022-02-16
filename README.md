@@ -10,10 +10,10 @@ I'll try to provision everything (network, instances, security) using code and c
 
 Terraform must be installed and configured in your environment: check how to install and configure it on [their website](https://www.terraform.io/downloads).
 
-The `main.tf` file must have defined the cloud provider of preference and the logical region defined. I selected AWS and that's probably the only hardcoded information entered - other code references depend on this information. The region where your VPC will be provisioned should also be defined:
+A `providers.tf` file must be created, defining the cloud provider of preference and the logical region selected. The region where your VPC will be provisioned should also be defined:
 
 ```terraform
-# main.tf
+# providers.tf
 provider "aws" {
   region = var.region
 }
@@ -21,7 +21,7 @@ provider "aws" {
 
 ## 2. Create a VPC
 
-Upon provisioning the Virtual Private Network (VPC), one may specify just some other instance details and have the VPC automatically provisioned with default values. However, such architecture would lack on autonomy.
+Upon provisioning the Virtual Private Network (VPC) on the `main.tf` file, one may specify just some other instance details and have the VPC automatically provisioned with default values. I set a VPC with default internet gateway settings. My approach was creating a system that allowed the provisioner to control some common necessities such as defining instance tenancy - that way, autonomy would not be too hampered.
 
 ```terraform
 # main.tf
@@ -35,25 +35,9 @@ resource "aws_vpc" "ourVPC" {
 }
 ```
 
-## 3. Create an internet gateway
-
-An internet gateway is a logical device responsible for connecting the VPC to the internet.
+## 3. Create subnets (public and private)
 
 From this point on, it's good practice to declare explicit dependencies using `depends_on`.
-
-```terraform
-# main.tf
-resource "aws_internet_gateway" "ourIGW" {
-  vpc_id = aws_vpc.ourVPC.id
-  depends_on = [aws_vpc.ourVPC]
-
-  tags = {
-    Name = var.internetGatewayName
-  }
-}
-```
-
-## 4. Create subnets (public and private)
 
 Within our VPC, subnets are logical clusters of instances that, although part of the same network, can be organised with different parameters to meet several needs.
 
@@ -67,7 +51,7 @@ resource "aws_subnet" "pubSub" {
   vpc_id = aws_vpc.ourVPC.id
   cidr_block = var.pubSubCIDRBlock
   availability_zone = var.pubSubAZ
-  depends_on = [aws_internet_gateway.ourIGW]
+  depends_on = [aws_vpc.ourVPC]
 
   tags = {
     Name = var.pubSubName
@@ -78,7 +62,7 @@ resource "aws_subnet" "privSub" {
   vpc_id = aws_vpc.ourVPC.id
   cidr_block = var.privSubCIDRBlock
   availability_zone = var.privSubAZ
-  depends_on = [aws_internet_gateway.ourIGW]
+  depends_on = [aws_vpc.ourVPC]
 
   tags = {
     Name = var.privSubName
@@ -86,22 +70,17 @@ resource "aws_subnet" "privSub" {
 }
 ```
 
-## 5. Create route tables and associate to subnets
+## 4. Create route tables and associate to subnets
 
-Route tables are configuration patterns that define the connection behaviour of each subnet (how it connects to other resources). It's good practice to associate one route table to each subnet; in our scenario, the public route table must have routes to the internet (that is, to our internet gateway) and to our VPC, while the private one must be routed to our VPC only.
+Route tables are configuration patterns that define the connection behaviour of each subnet (how it connects to other resources).
 
-On Terraform code, there must be `resource`s for the route tables and for their associations with subnets. The default route, that maps the VPC's CIDR block to `local`, is created implicitly - therefore, the private route table does not require a `route` within a `resource`.
+It's good practice to associate one route table to each subnet; to do so, the `aws_route_table_association` resource must be used.
 
 ```terraform
 # main.tf
 resource "aws_route_table" "pubRT" {
   vpc_id = aws_vpc.ourVPC.id
   depends_on = [aws_subnet.pubSub]
-
-  route {
-    cidr_block = var.pubRTCIDRBlock
-    gateway_id = aws_internet_gateway.ourIGW.id
-  }
 
   tags = {
     Name = var.pubRTName
@@ -130,44 +109,30 @@ resource "aws_route_table_association" "privRTToSub" {
 }
 ```
 
-## 6. Create public and private instances with security groups
+## 5. Create security groups and its rules
 
-OK - now that the whole network infrastructure is set, our instances must be created within our subnets and its security groups must be configured. Security groups are layers of security on the instance level, where the administrator defines what can connect to the resource and how (using which protocol).
+Security groups are layers of security on the instance level, where the administrator defines what can connect to the resource and how (using which protocol) using security group rules.
 
-The bastion host instance was drafted while creating the internet gateway; therefore, it must receive additional and necessary arguments (such as defining its public IP or AMI) to be functional. The private instance security group must state that SSH connections should be accepted only from the bastion host.
-
-There are many other attributes that could be used for more autonomy, but these selected are enough.
+Like route tables, security group rules have their specific `resource` block of code. To set up our scenario (where the public route table must point to the internet and to our VPC, while the private one must be routed to our VPC only), the private instance security group rule must state that only SSH connections from the bastion host security group should be accepted.
 
 ```terraform
 # main.tf
-
-# Bastion Host instance configuration
-resource "aws_instance" "bastionHost" {
-  ami = var.bastionHostAMI
-  instance_type = var.bastionHostInstanceType
-  vpc_security_group_ids = [aws_security_group.bastionHostSG.id]
-  depends_on = [aws_security_group.bastionHostSG]
-
-  tags = {
-    Name = var.bastionHostName
-  }
-}
-
 resource "aws_security_group" "bastionHostSG" {
   vpc_id = aws_vpc.ourVPC.id
+  depends_on = [aws_route_table.pubRT]
 
   ingress {
-    from_port        = 22
-    to_port          = 22
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = {
@@ -175,39 +140,54 @@ resource "aws_security_group" "bastionHostSG" {
   }
 }
 
-# Private instance configuration
+resource "aws_security_group" "privInstSG" {
+  vpc_id = aws_vpc.ourVPC.id
+  depends_on = [aws_route_table.privRT]
+
+  tags = {
+    Name = var.privInstSGName
+  }
+}
+
+resource "aws_security_group_rule" "privInstSGRule" {
+  type = "ingress"
+  from_port = 22
+  to_port = 22
+  protocol = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.bastionHostSG.id
+}
+```
+
+## 7. Create the bastion host and the private instance
+
+The EC2 instances must be attached to each of our security groups, created within each of our subnets. For autonomy reasons, I am including details such as AMI and instance type to select.
+
+```terraform
+#main.tf
+resource "aws_instance" "bastionHost" {
+  ami = var.bastionHostAMI
+  instance_type = var.bastionHostInstanceType
+  vpc_security_group_ids = [aws_security_group.bastionHostSG.id]
+  subnet_id = aws_subnet.pubSub.id
+  depends_on = [aws_security_group.bastionHostSG]
+
+  tags = {
+    Name = var.bastionHostName
+  }
+}
+
 resource "aws_instance" "privInstance" {
   ami = var.privInstAMI
   instance_type = var.privInstInstanceType
   vpc_security_group_ids = [aws_security_group.privInstSG.id]
+  subnet_id = aws_subnet.privSub.id
   depends_on = [aws_security_group.privInstSG]
 
   tags = {
     Name = var.privInstName
   }
 }
-
-resource "aws_security_group" "privInstSG" {
-  vpc_id = aws_vpc.ourVPC.id
-
-  ingress {
-    from_port        = 22
-    to_port          = 22
-    protocol         = "tcp"
-    cidr_blocks      = [aws_instance.bastionHost.private_ip]
-  }
-
-  egress {
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = var.privInstSGName
-  }
-}
 ```
 
-## 7. Configuring the bastion host security and access to the private instance
+## 8. Configuring the bastion host security and access to the private instance
