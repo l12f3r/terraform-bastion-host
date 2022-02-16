@@ -209,3 +209,5 @@ resource "aws_instance" "privInstance" {
 Now, the Terraform code must be applied using `terraform apply`. After its completion, all environment will be available on the cloud. Just SSH into the bastion host and, from there only, one may SSH into the private instance.
 
 A huge shout out to [@1Vidz1](https://github.com/1Vidz1), who developed this [on his own repo](https://github.com/1Vidz1/AWS-Terraform-Environments/) and was my pair-debugging pal - the last two sections are pretty much on him. Obrigado! Another one to the mentor of this project, [@tseideltrc](https://github.com/tseideltrc): bifanas no prato and Pedro's finest to you both! Vielen danke!
+
+P.S.: Thanks to [@pdoerning](https://github.com/pdoerning) for the heads-up with adding Terraform state files on .gitignore!
