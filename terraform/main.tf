@@ -1,3 +1,17 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = var.region
+  profile = "default"
+}
+
 resource "aws_vpc" "ourVPC" {
   cidr_block = var.vpcCIDRBlock
   instance_tenancy = var.vpcInstanceTenancy
@@ -96,7 +110,7 @@ resource "aws_security_group" "privInstSG" {
 
   egress {
     from_port = 0
-    to_port = 0
+    to_port = 443
     protocol = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
