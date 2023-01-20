@@ -15,64 +15,49 @@ Terraform must be installed and configured in your environment: check how to ins
 A `providers.tf` file must be created, defining the cloud provider of preference and the logical region selected. The region where your VPC will be provisioned should also be defined:
 
 ```terraform
-# providers.tf
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.0"
+    }
+  }
+}
+
 provider "aws" {
   region = var.region
 }
+
 ```
 
 ## 2. Create a VPC
 
-Upon provisioning the Virtual Private Network (VPC) on the `main.tf` file, one may specify just some other instance details and have the VPC automatically provisioned with default values. I set a VPC with default internet gateway settings. My approach was creating a system that allowed the provisioner to control some common necessities such as defining instance tenancy - that way, autonomy would not be too hampered.
+For this Terragrunt scenario, I'm using the AWS module. Maybe it doesn't break as much as it was during recent debug sessions.
+
+### Create subnets (public and private)
+
+Within our VPC, subnets are logical clusters/groups of interconnected instances that, although part of the same VPC, can be organised with different parameters to meet several needs.
+
+Those can be defined on code, by stating the CIDR blocks to be used, along with the availability zones where it will be deployed.
 
 ```terraform
 # main.tf
-resource "aws_vpc" "ourVPC" {
-  cidr_block = var.vpcCIDRBlock
-  instance_tenancy = var.vpcInstanceTenancy
+module "vpc" {
+  source = "terraform-aws-modules/vpc/aws"
 
-  tags = {
-    Name = var.vpcName
-  }
+  name = var.vpcName
+  cidr = var.vpcCIDRBlock
+
+  azs             = var.azs
+  private_subnets = var.privSubCIDRBlock
+  public_subnets  = var.pubSubCIDRBlock
+
+  enable_nat_gateway = false
+  enable_vpn_gateway = true
 }
 ```
 
-## 3. Create subnets (public and private)
-
-From this point on, it's good practice to declare explicit dependencies using `depends_on`.
-
-Within our VPC, subnets are logical clusters of instances that, although part of the same network, can be organised with different parameters to meet several needs.
-
-The following lines of code contain some fundamental parameters for setting up two subnets: a public one (that is, open to receive internet traffic), for the bastion host, and another private one for the instances that will receive the bastion host access (and must not be connected to the internet).
-
-Since that those subnets will be within the VPC's CIDR block, make sure to divide the useable IPs properly. In order to do so, I used [this visual subnet calculator I found online](https://www.davidc.net/sites/default/subnets/subnets.html).
-
-```terraform
-# main.tf
-resource "aws_subnet" "pubSub" {
-  vpc_id = aws_vpc.ourVPC.id
-  cidr_block = var.pubSubCIDRBlock
-  availability_zone = var.pubSubAZ
-  depends_on = [aws_vpc.ourVPC]
-
-  tags = {
-    Name = var.pubSubName
-  }
-}
-
-resource "aws_subnet" "privSub" {
-  vpc_id = aws_vpc.ourVPC.id
-  cidr_block = var.privSubCIDRBlock
-  availability_zone = var.privSubAZ
-  depends_on = [aws_vpc.ourVPC]
-
-  tags = {
-    Name = var.privSubName
-  }
-}
-```
-
-## 4. Create route tables and associate to subnets
+## 3. Create route tables and associate to subnets
 
 Route tables are configuration patterns that define the connection behaviour of each subnet (how it connects to other resources).
 
@@ -111,7 +96,7 @@ resource "aws_route_table_association" "privRTToSub" {
 }
 ```
 
-## 5. Create security groups and its rules
+## 4. Create security groups and its rules
 
 Security groups are layers of security on the instance level, where the administrator defines what can connect to the resource and how (using which protocol) using security group rules.
 
@@ -167,7 +152,7 @@ resource "aws_security_group" "privInstSG" {
 }
 ```
 
-## 7. Create the bastion host and the private instance
+## 5. Create the bastion host and the private instance
 
 The EC2 instances must be attached to each of our security groups, created within each of our subnets. For autonomy reasons, I am including details such as AMI and instance type to select.
 
@@ -206,7 +191,7 @@ resource "aws_instance" "privInstance" {
 }
 ```
 
-## 8. Completion
+## 6. Completion
 
 Now, the Terraform code must be applied using `terraform apply`. After its completion, all environment will be available on the cloud. Just SSH into the bastion host and, from there only, one may SSH into the private instance.
 

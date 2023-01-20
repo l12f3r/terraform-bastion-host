@@ -18,3 +18,4 @@ privInstAMI = "ami-0fe0b2cf0e1f25c8a"
 privInstInstanceType = "t3.nano"
 privInstName = "Private Instance"
 privInstSGName = "Private Instance Security Group"
+azs = [pubSubAZ, privSubAZ]
